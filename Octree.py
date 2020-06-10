@@ -37,7 +37,7 @@ class GridIndex:
 
 class Octree:
 
-    def __init__(self):
+    def __init__(self, *args):
         self.min_corner = np.zeros(3)
         self.length = np.zeros(3)
 
@@ -54,8 +54,17 @@ class Octree:
         self.face_indices = []
         self.face_ind = []
 
-    def __init__(self, min_corner:np.array, max_corner:np.array, faces:np.array, thickness):
-        self.__init__()
+        if len(args) == 4:
+            self.__init4__(args[0], args[1], args[2], args[3])
+        elif len(args) == 2:
+            self.__init2__(args[0], args[1])
+        elif len(args) == 3:
+            self.__init3__(args[0], args[1], args[2])
+        else:
+            raise Exception("unsupported initialization")
+
+    def __init4__(self, min_corner:np.array, max_corner:np.array, faces:np.array, thickness):
+
         self.min_corner = min_corner
         self.length = max_corner - min_corner
         max_ind = np.argmax(self.length)
@@ -65,7 +74,7 @@ class Octree:
         self.min_corner -= ((max_length - self.length) * 0.5 + thickness * 0.5)
         self.length = np.ones(3) * (max_length + thickness)
 
-        self.face_indeces = faces
+        self.face_indices = faces
         self.face_ind = np.arange(len(self.face_indeces.shape))
 
         # self.level = 0
@@ -74,10 +83,16 @@ class Octree:
         # self.exterior = 0
 
 
-    def __init__(self, min_c, length):
-        self.__init__()
+    def __init2__(self, min_c, length):
         self.min_corner = min_c
         self.length = length
+
+    def __init3__(self, min_c, length, unoccupied):
+        self.__init2__(min_c, length)
+        self.occupied = 0
+        self.number = 0
+
+
 
     def isExterior(self, p:np.array):
         # not in bounding box,
@@ -109,7 +124,49 @@ class Octree:
 
         return triBoxOverlap(box_center, halfsize_box, triverts)
 
-    def
+    def split(self, vertices):
+        self.level += 1
+        self.number = 0
+        if self.level > 1:
+            for i in range(8):
+                if self.children[i] and (Octree)(self.children[i]).occupied:
+                    (Octree)(self.children[i]).split(vertices)
+                    self.number += (Octree)(self.children[i]).number
+            self.face_indices = []
+            self.face_ind = []
+            return
+        halfsize = self.length * 0.5
+        for ind in range(8):
+            k , j , i = ind % 2, (ind // 2 % 2), ind // 4
+            startpoint = self.min_corner + halfsize * np.array([i,j,k])
+            self.children[ind] = Octree(startpoint, halfsize, True)
+
+            for face in range(len(self.face_indices)):
+                if self.intersection(face, startpoint, halfsize, vertices):
+                    self.children[ind].face_indice.push_back(self.face_indices[face])
+                    self.children[ind].face_ind.push_back(self.face_ind[face])
+                    if  not self.children[ind].occupied:
+                        self.children[ind] = 1
+                        self.number += 1
+                        self.children[ind].number = 1
+        self.face_indices = []
+        self.face_ind = []
+
+        pass
+
+    def buildConnection(self):
+        pass
+
+    def connectEmptyTree(self, l, r, dim):
+        pass
+
+    def expandEmpty(self, empty_list, empty_set, dim):
+        pass
+
+    def constructFace(self, v_color, start, vertices, daces, v_faces):
+        pass
+
+
 
 
 x = np.zeros(3)

@@ -1,6 +1,6 @@
-# AABB-triangle overlap
-# a translation of by Tomas Akenine-Möller's c++ ver
-# chuchong
+# AABB-triangle-box overlap
+# a translation of Tomas Akenine-Möller's c++ ver
+# created by chuchong
 
 import numpy as np
 
