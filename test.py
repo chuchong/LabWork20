@@ -28,3 +28,21 @@ triangle = np.array([[5, 5, 5],
                      [4, 5, 6],
                      [6, 5, 4]])
 print(triBoxOverlap(box_center, halfbox_size, triangle))
+
+import time
+x_set = set()
+class X:
+    def __init__(self):
+        time.sleep(0.1)
+        self.pointer = time.time()
+        x_set.add(self)
+
+    def __str__(self):
+        return str(self.pointer)
+
+x = X()
+y = X()
+z = X()
+print(x in x_set)
+for k in x_set:
+    print(k)
