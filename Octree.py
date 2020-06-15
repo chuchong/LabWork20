@@ -12,29 +12,28 @@ from geometry import triBoxOverlap
 
 class GridIndex:
 
-    def __init__(self):
-        self.index = np.zeros((3))
-
-    def __init__(self, x, y, z):
-        self.index = np.array([x,y,z])
-
-    def __init__(self, index: np.array):
-        self.index = index
+    def __init__(self, *args):
+        if len(args) == 0:
+            self.id = np.zeros((3))
+        elif len(args) == 3:
+            self.id = np.array(args)
+        elif len(args) == 1:
+            self.id = args[0]
 
     def __lt__(self, other):
-        return self.index < other.index
+        return self.id < other.id
 
     def __le__(self, other):
-        return self.index <= other.index
+        return self.id <= other.id
 
     def __str__(self):
-        return self.index.__str__()
+        return self.id.__str__()
 
     def __add__(self, other):
-        return GridIndex(self.index + other.index)
+        return GridIndex(self.id + other.id)
 
     def __truediv__(self, other):
-        return GridIndex(self.index / other)
+        return GridIndex(self.id / other)
 
 class Octree:
 
@@ -47,9 +46,9 @@ class Octree:
         self.occupied = 1
         self.exterior = 0
 
-        self.children = [None] * 8
-        self.connection = [None ] * 6
-        self.empty_conn = [None ] * 6
+        self.children = [] * 8
+        self.connection = [ ] * 6
+        self.empty_connection = [ ] * 6
         self.empty_neighbors = []
 
         self.face_indices = []
@@ -145,7 +144,7 @@ class Octree:
             return
         halfsize = self.length * 0.5
         for ind in range(8): # level 小于等于1的时候,遍历子节点,寻找和mesh面是否相交,据此分配给子点
-            k , j , i = ind % 2, (ind // 2 % 2), ind // 4
+            k , j , i = ind & 1, (ind & 2) >> 1, (ind & 4) >> 2
             startpoint = self.min_corner + halfsize * np.array([i,j,k])
             self.children[ind] = Octree(startpoint, halfsize, True)
 
@@ -283,43 +282,81 @@ class Octree:
                           5: [1, 3, 5, 7]}
             self._expandEmpty(emptyTable[dim], self.children, empty_list, empty_set, dim)
 
-
-
-
     def buildEmptyConnection(self):
-        pass
+        if self.level == 0:
+            return
+        for  i in range(8):
+            if self.children[i].occupied:
+                self.children[i].builldEmptyConnection()
+        pair_x = [0,2,4,6,0,1,4,5,0,1,2,3]
+        pair_y = [1,3,5,7,2,3,6,7,4,5,6,7]
+        dim= [2,2,2,2,1,1,1,1,0,0,0,0]
+        for i in range(12):
+             self.connectEmptyTree(self.children[pair_x[i]], self.children[pair_y[i]], dim[i])
 
-    def constructFace(self, v_color, start, vertices, daces, v_faces):
-        pass
+    @classmethod
+    def _offset(cls):
+        '''
+        the rectangle vertex of 6 faces
+        1 0 0   0 1 0   0 0 1   0 0 0   0 0 0   0 0 0
+        1 0 1   1 1 0   0 1 1   0 1 0   0 0 1   1 0 0
+        1 1 1   1 1 1   1 1 1   0 1 1   1 0 1   1 1 0
+        1 1 0   0 1 1   1 0 1   0 0 1   1 0 0   0 1 0
+        if we see from column perspective, it's a mixture of  1111 0011 0110 0000
+        :return:
+        '''
+        p1 = np.array([1, 1, 1, 1]).transpose()
+        p2 = np.array([0, 0, 1, 1]).transpose()
+        p3 = np.array([0, 1, 1, 0]).transpose()
+        p4 = np.array([0, 0, 0, 0]).transpose()
+        # then the faces can be implied by cyclic matrix
+        f1 = np.column_stack([p1, p2, p3])
+        f2 = np.column_stack([p3, p1, p2])
+        f3 = np.column_stack([p2, p3, p1])
 
+        f4 = np.column_stack([p4, p3, p2])
+        f5 = np.column_stack([p2, p4, p3])
+        f6 = np.column_stack([p3, p2, p4])
+        return np.stack([f1, f2, f3, f4, f5, f6])
 
+    face_offset = None
 
+    @classmethod
+    def get_offset(cls):
+        if Octree.face_offset is None:
+            Octree.face_offset = Octree._offset()
+        return Octree.face_offset
 
-x = np.zeros(3)
-xx = GridIndex(x)
-y = np.array([1,2,3])
-yy = GridIndex(y)
-zz = yy / 1.5
-
-max_index = np.argmax(yy.index)
-print(max_index)
-print()
-print(xx)
-print(yy)
-print(zz)
-
-x -= (3 - yy.index) * 0.5 + 2
-print(x)
-
-p = np.array([1, 1, 1])
-middle_box = np.array([1,2,4])
-inbox_mask = middle_box <= p
-index = np.sum(inbox_mask * np.array([1, 2, 4]))
-print(index)
-
-face_indices = np.array([[1,2,3],[4,5,6],[7,8,9]])
-vertices = np.array([[0,1,2],[3,4,5],[6,7,8],[9,10,11]])
-face_index = 0
-triverts = np.zeros((3, 3))
-triverts = vertices[face_indices[face_index]]
-print(triverts)
+    def constructFace(self, v_color: dict, start : np.array, vertices, faces, v_faces):
+        offset = Octree.get_offset()
+        if self.level == 0:
+            if not self.occupied:
+                return
+            for i in range(6):
+                if self.empty_connection[i] and self.empty_connection[i].exterior:
+                    if self.connection[i] and self.connection[i].occupied:
+                        raise Exception("connection {} is occupied in construct face phase".format(i))
+                    id = np.array([0, 0, 0, 0])
+                    for j in range(4):
+                        vind = start + offset[i, j]
+                        v_id = GridIndex()
+                        v_id.id = vind * 2
+                        for it in v_color.items():
+                            id[j] = it[1]
+                            for it1 in self.face_ind:
+                                # TODO check validity
+                                v_faces[it[1]].add(it1)
+                        d = self.min_corner + offset[i, j] * self.length
+                        v_color[v_id] = len(vertices)
+                        id[j] = len(vertices)
+                        vertices.append(d)
+                        v_faces.append(set())
+                        for ind in self.face_ind:
+                            v_faces[id[j]].add(ind)
+                    faces.append(id)
+            else:
+                for i in range(8):
+                    if self.children[i] and self.children[i].occupied:
+                        x, y, z = i & 4 >> 2, (i & 2) >> 1, (i & 1)
+                        nstart = start * 2 + np.array([x, y, z])
+                        self.children[i].constructFace(v_color, nstart, vertices, faces, v_faces)

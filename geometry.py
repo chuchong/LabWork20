@@ -5,7 +5,7 @@
 import numpy as np
 
 '''
-to calculate whether the vector that equals v0 v1 edge (x, y, z) and X/Y/Z axis dot
+to calculate whether the vector that equals v0 v1 edge (x, y, z) and X/Y/Z axis 
 can separate the triangle and box
 
 the cross matrix of (x, y, z) is 
@@ -31,7 +31,7 @@ and its radius is (by w: half width, l: half length, h: half height)
 
 then we consider whether the v in radius, if not , False
 
-e_X represents the dot matrix
+e_X represents the cross matrix
 radius = e_X [w l h]^T
 projection = e_X^T
 project_V = projection V^T
